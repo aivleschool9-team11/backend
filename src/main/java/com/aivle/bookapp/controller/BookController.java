@@ -11,6 +11,7 @@ import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 
 import java.net.URI;
 import java.util.List;
+import java.util.Map;
 
 /**
  * 도서 관련 REST API 요청을 처리하는 컨트롤러입니다.
@@ -96,5 +97,18 @@ public class BookController {
         log.info("Request to delete book id: {}", id);
         bookService.deleteById(id);
         return ResponseEntity.noContent().build();
+    }
+
+    /**
+     * 6. 좋아요 수 증가/감소 (PATCH /books/{id}/likes)
+     * - body: { "likes": 1 } 또는 { "likes": -1 }
+     * - 유저별 좋아요 상태는 프론트 localStorage 관리, 백엔드는 전체 카운트만 증감
+     */
+    @PatchMapping("/{id}/likes")
+    public ResponseEntity<Book> updateLikes(@PathVariable Long id, @RequestBody Map<String, Integer> body) {
+        int likes = body.getOrDefault("likes", 0);
+        log.info("Request to update likes for book id: {}, delta: {}", id, likes);
+        Book updatedBook = bookService.updateLikes(id, likes);
+        return ResponseEntity.ok(updatedBook);
     }
 }
