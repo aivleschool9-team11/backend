@@ -1,7 +1,11 @@
 package com.aivle.bookapp.service;
 
+import com.aivle.bookapp.domain.BookTag;
+import com.aivle.bookapp.domain.Tag;
 import com.aivle.bookapp.exception.BookNotFoundException;
 import com.aivle.bookapp.repository.BookRepository;
+import com.aivle.bookapp.repository.BookTagRepository;
+import com.aivle.bookapp.repository.TagRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
