@@ -53,7 +53,9 @@ public class BookController {
     @PostMapping
     public ResponseEntity<Book> createBook(@Valid @RequestBody Book book) {
         log.info("Request to create book: {}", book.getTitle());
-        Book savedBook = bookService.create(book, null, null, null);
+
+        // 💡 임시 null 대신 포스트맨 body에 담겨온 book.getTags()를 서비스로 토스!
+        Book savedBook = bookService.create(book, book.getTags(), null, null);
 
         URI location = ServletUriComponentsBuilder.fromCurrentRequest()
                 .path("/{id}")
@@ -67,10 +69,12 @@ public class BookController {
      * 4. 도서 정보 수정 (PATCH /books/{id})
      */
     @PatchMapping("/{id}")
-    public ResponseEntity<Book> updateBook(@PathVariable Long id, @Valid @RequestBody Book book) {
+    public ResponseEntity<Book> updateBook(@PathVariable Long id, @RequestBody Book book) { // 💡 @Valid 제거하여 부분 수정 허용
         log.info("Request to update book id: {}", id);
-        Book updatedBook = bookService.update(id, book, null, null, null);
-        
+
+        // 💡 수정 요청 시 들어온 태그도 서비스에 그대로 전달!
+        Book updatedBook = bookService.update(id, book, book.getTags(), null, null);
+
         return ResponseEntity.ok(updatedBook);
     }
 

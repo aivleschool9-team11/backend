@@ -10,7 +10,6 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 
-
 /**
  * 도서 비즈니스 로직 처리 서비스
  */
@@ -30,10 +29,18 @@ public class BookService {
      * 키워드 검색 + 정렬 + 태그 필터링 (통합 검색)
      */
     public List<Book> findAllWithFilter(String keyword, String sort, String tag) {
-        List<Book> result = (keyword == null || keyword.isBlank())
-                ? bookRepository.findAll()
-                : bookRepository.findByTitleContainingOrAuthorContaining(keyword, keyword);
+        List<Book> result;
 
+        // 💡 만약 태그 필터 조건이 주어졌다면 태그 검색 기능 수행!
+        if (tag != null && !tag.isBlank()) {
+            result = bookRepository.findByTagsContaining(tag);
+        } else if (keyword != null && !keyword.isBlank()) {
+            result = bookRepository.findByTitleContainingOrAuthorContaining(keyword, keyword);
+        } else {
+            result = bookRepository.findAll();
+        }
+
+        // 정렬 조건 처리
         if ("newest".equals(sort)) result.sort((a, b) -> b.getCreatedAt().compareTo(a.getCreatedAt()));
         else if ("oldest".equals(sort)) result.sort((a, b) -> a.getCreatedAt().compareTo(b.getCreatedAt()));
         else if ("title".equals(sort)) result.sort((a, b) -> a.getTitle().compareTo(b.getTitle()));
@@ -62,21 +69,24 @@ public class BookService {
      * 새 도서 등록 + 태그 저장 + 임베딩 저장
      */
     @Transactional
-    public Book create(Book book, List<String> tags, String embeddingJson, Long embeddingDurationMs) {
+    public Book create(Book book, String tags, String embeddingJson, Long embeddingDurationMs) {
         if (book.getLikes() == null) {
             book.setLikes(0);
         }
-        Book saved = bookRepository.save(book);
 
-        // 태그/임베딩 저장 로직 (필요 시 추가)
-        return saved;
+        // 💡 컨트롤러에서 넘어온 태그 문자열을 엔티티에 세팅!
+        if (tags != null) {
+            book.setTags(tags);
+        }
+
+        return bookRepository.save(book);
     }
 
     /**
      * 도서 정보 수정 (AI 연동 규격 반영)
      */
     @Transactional
-    public Book update(Long id, Book book, List<String> tags, String embeddingJson, Long embeddingDurationMS) {
+    public Book update(Long id, Book book, String tags, String embeddingJson, Long embeddingDurationMS) {
         Book existing = findById(id);
 
         if (book.getTitle() != null) existing.setTitle(book.getTitle());
@@ -87,7 +97,11 @@ public class BookService {
         if (book.getCopy() != null) existing.setCopy(book.getCopy());
         if (book.getCoverImageUrl() != null) existing.setCoverImageUrl(book.getCoverImageUrl());
         if (book.getLikes() != null) existing.setLikes(book.getLikes());
-        if (book.getTags() != null) existing.setTags(book.getTags());
+
+        // 💡 수정할 때 태그가 들어왔다면 태그도 업데이트 반영!
+        if (tags != null) {
+            existing.setTags(tags);
+        }
 
         return bookRepository.save(existing);
     }

@@ -37,6 +37,8 @@ public class Book {
 
     private String copy;
 
+    private String isbn;
+
     @Column(name = "cover_image_url")
     private String coverImageUrl;
 
