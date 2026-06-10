@@ -80,9 +80,11 @@ public class BookController {
 
     /**
      * 4. 도서 정보 수정 (PATCH /books/{id})
+     * 부분 수정이므로 @Valid 를 적용하지 않는다 (필수 필드 일부만 보내도 허용).
+     * 실제 부분 반영은 BookService.update 의 null 체크가 담당.
      */
     @PatchMapping("/{id}")
-    public ResponseEntity<Book> updateBook(@PathVariable Long id, @Valid @RequestBody Book book) {
+    public ResponseEntity<Book> updateBook(@PathVariable Long id, @RequestBody Book book) {
         log.info("Request to update book id: {}", id);
         // TODO: 태그/임베딩은 요청 DTO 스펙 확정 후 연결 (현재는 도서 기본 정보만 수정)
         Book updatedBook = bookService.update(id, book, null, null, null);
