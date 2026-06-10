@@ -2,11 +2,6 @@ package com.aivle.bookapp.repository;
 
 import com.aivle.bookapp.domain.Book;
 import org.springframework.data.jpa.repository.JpaRepository;
-<<<<<<< Updated upstream
-
-public interface BookRepository extends JpaRepository<Book, Long> {
-}
-=======
 import java.util.List;
 
 /**
@@ -19,4 +14,3 @@ public interface BookRepository extends JpaRepository<Book, Long> {
     // 태그 포함 검색 (단순 문자열 매칭)
     List<Book> findByTagsContaining(String tagName);
 }
->>>>>>> Stashed changes

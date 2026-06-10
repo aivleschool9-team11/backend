@@ -11,7 +11,6 @@ import org.springframework.transaction.annotation.Transactional;
 import java.util.List;
 
 
-// 임시로 작성 나중에 병합 해서 테스트 해볼예정
 /**
  * 도서 비즈니스 로직 처리 서비스
  */
@@ -22,14 +21,25 @@ import java.util.List;
 public class BookService {
     private final BookRepository bookRepository;
 
-    /**
-     * 모든 도서 조회 또는 제목 검색
-     */
-    public List<Book> findAll(String keyword) {
-        if (keyword != null && !keyword.isEmpty()) {
-            return bookRepository.findByTitleContaining(keyword);
-        }
+    // 전체 도서 목록 조회
+    public List<Book> findAll() {
         return bookRepository.findAll();
+    }
+
+    /**
+     * 키워드 검색 + 정렬 + 태그 필터링 (통합 검색)
+     */
+    public List<Book> findAllWithFilter(String keyword, String sort, String tag) {
+        List<Book> result = (keyword == null || keyword.isBlank())
+                ? bookRepository.findAll()
+                : bookRepository.findByTitleContainingOrAuthorContaining(keyword, keyword);
+
+        if ("newest".equals(sort)) result.sort((a, b) -> b.getCreatedAt().compareTo(a.getCreatedAt()));
+        else if ("oldest".equals(sort)) result.sort((a, b) -> a.getCreatedAt().compareTo(b.getCreatedAt()));
+        else if ("title".equals(sort)) result.sort((a, b) -> a.getTitle().compareTo(b.getTitle()));
+        else if ("likes".equals(sort)) result.sort((a, b) -> (b.getLikes() == null ? 0 : b.getLikes()) - (a.getLikes() == null ? 0 : a.getLikes()));
+
+        return result;
     }
 
     /**
@@ -45,49 +55,41 @@ public class BookService {
      */
     public Book findById(Long id) {
         return bookRepository.findById(id)
-                .orElseThrow(() -> new BookNotFoundException("도서를 찾을 수 없습니다. ID: " + id));
+                .orElseThrow(() -> new BookNotFoundException(id));
     }
 
     /**
-     * 도서 신규 저장
+     * 새 도서 등록 + 태그 저장 + 임베딩 저장
      */
     @Transactional
-<<<<<<< Updated upstream
-    public Book save(Book book) {
-        return bookRepository.save(book);
-=======
-    public Book create(Book book, List<String> tags, String embeddingJson, Long embeddingDurationMs){
-
+    public Book create(Book book, List<String> tags, String embeddingJson, Long embeddingDurationMs) {
         if (book.getLikes() == null) {
             book.setLikes(0);
         }
         Book saved = bookRepository.save(book);
 
-        // 태그 저장
-        // 임베딩 저장
+        // 태그/임베딩 저장 로직 (필요 시 추가)
         return saved;
->>>>>>> Stashed changes
     }
 
     /**
-     * 도서 정보 수정 (더티 체킹 활용)
+     * 도서 정보 수정 (AI 연동 규격 반영)
      */
     @Transactional
-    public Book update(Long id, Book book) {
-        Book existingBook = findById(id);
-        
-        if (book.getTitle() != null) existingBook.setTitle(book.getTitle());
-        if (book.getAuthor() != null) existingBook.setAuthor(book.getAuthor());
-        if (book.getIsbn() != null) existingBook.setIsbn(book.getIsbn());
-        if (book.getDescription() != null) existingBook.setDescription(book.getDescription());
-        if (book.getContent() != null) existingBook.setContent(book.getContent());
-        if (book.getSummary() != null) existingBook.setSummary(book.getSummary());
-        if (book.getCopy() != null) existingBook.setCopy(book.getCopy());
-        if (book.getCoverImageUrl() != null) existingBook.setCoverImageUrl(book.getCoverImageUrl());
-        if (book.getLikes() != null) existingBook.setLikes(book.getLikes());
-        if (book.getTags() != null) existingBook.setTags(book.getTags());
-        
-        return existingBook;
+    public Book update(Long id, Book book, List<String> tags, String embeddingJson, Long embeddingDurationMS) {
+        Book existing = findById(id);
+
+        if (book.getTitle() != null) existing.setTitle(book.getTitle());
+        if (book.getAuthor() != null) existing.setAuthor(book.getAuthor());
+        if (book.getIsbn() != null) existing.setIsbn(book.getIsbn());
+        if (book.getSummary() != null) existing.setSummary(book.getSummary());
+        if (book.getContent() != null) existing.setContent(book.getContent());
+        if (book.getCopy() != null) existing.setCopy(book.getCopy());
+        if (book.getCoverImageUrl() != null) existing.setCoverImageUrl(book.getCoverImageUrl());
+        if (book.getLikes() != null) existing.setLikes(book.getLikes());
+        if (book.getTags() != null) existing.setTags(book.getTags());
+
+        return bookRepository.save(existing);
     }
 
     /**
@@ -96,8 +98,17 @@ public class BookService {
     @Transactional
     public void deleteById(Long id) {
         if (!bookRepository.existsById(id)) {
-            throw new BookNotFoundException("삭제할 도서를 찾을 수 없습니다. ID: " + id);
+            throw new BookNotFoundException(id);
         }
         bookRepository.deleteById(id);
+    }
+
+    // 좋아요 업데이트
+    @Transactional
+    public Book updateLikes(Long id, int likes) {
+        Book existing = findById(id);
+        int current = existing.getLikes() == null ? 0 : existing.getLikes();
+        existing.setLikes(current + likes);
+        return bookRepository.save(existing);
     }
 }
