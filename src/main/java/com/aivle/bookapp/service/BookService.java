@@ -109,7 +109,7 @@ public class BookService {
 
     // 키워드 검색 + 정렬
     @Transactional(readOnly = true)
-    public List<Book> findAllWithFilter(String keyword, String sort){
+    public List<Book> findAllWithFilter(String keyword, String sort, String tag){
         List<Book> result = (keyword == null || keyword.isBlank())
                 ? bookRepository.findAll()
                 : bookRepository.findByTitleContainingOrAuthorContaining(keyword, keyword);
