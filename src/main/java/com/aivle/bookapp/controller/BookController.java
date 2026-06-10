@@ -44,7 +44,7 @@ public class BookController {
             books = bookService.findByTagName(tag);
         } else {
             // 일반 목록 조회 및 키워드 검색 (정렬 조건 포함)
-            books = bookService.findAll(keyword, sort);
+            books = bookService.findAllWithFilter(keyword, sort, null);
         }
 
         return ResponseEntity.ok(books);
@@ -66,7 +66,8 @@ public class BookController {
     @PostMapping
     public ResponseEntity<Book> createBook(@Valid @RequestBody Book book) {
         log.info("Request to create book: {}", book.getTitle());
-        Book savedBook = bookService.save(book);
+        // TODO: 태그/임베딩은 요청 DTO 스펙 확정 후 연결 (현재는 도서 기본 정보만 저장)
+        Book savedBook = bookService.create(book, null, null, null);
 
         URI location = ServletUriComponentsBuilder.fromCurrentRequest()
                 .path("/{id}")
@@ -82,7 +83,8 @@ public class BookController {
     @PatchMapping("/{id}")
     public ResponseEntity<Book> updateBook(@PathVariable Long id, @Valid @RequestBody Book book) {
         log.info("Request to update book id: {}", id);
-        Book updatedBook = bookService.update(id, book);
+        // TODO: 태그/임베딩은 요청 DTO 스펙 확정 후 연결 (현재는 도서 기본 정보만 수정)
+        Book updatedBook = bookService.update(id, book, null, null, null);
         return ResponseEntity.ok(updatedBook);
     }
 

@@ -18,6 +18,13 @@ public class GlobalExceptionHandler {
         return ResponseEntity.status(HttpStatus.NOT_FOUND).body(body);
     }
 
+    // 404 — 임베딩을 찾을 수 없음
+    @ExceptionHandler(BookEmbeddingNotFoundException.class)
+    public ResponseEntity<Map<String, String>> handleNotFound(BookEmbeddingNotFoundException e) {
+        Map<String, String> body = Map.of("error", "Book Embedding not found", "message", e.getMessage());
+        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(body);
+    }
+
     // 400 — @Valid 유효성 검사 실패
     @ExceptionHandler(MethodArgumentNotValidException.class)
     public ResponseEntity<Map<String, String>> handleValidation(MethodArgumentNotValidException e) {
