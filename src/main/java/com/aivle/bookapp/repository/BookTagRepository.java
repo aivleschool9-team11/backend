@@ -8,7 +8,7 @@ import java.util.List;
 public interface BookTagRepository extends JpaRepository<BookTag, Long>{
     // 특정 도서의 태그 연결 목록 조회
     List<BookTag> findByBookId(Long bookId);
-
+    List<BookTag> findByTagId(Long tagId);
     // 특정 도서의 태그 연결 전체 삭제
     void deleteByBookId(Long bookId);
 }

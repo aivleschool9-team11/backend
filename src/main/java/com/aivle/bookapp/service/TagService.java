@@ -49,23 +49,29 @@ public class TagService {
         return tagRepository.save(tag);
     }
 
-    // 도서에 태그 연결
+    // 도서에 태그 목록 연결 저장
     @Transactional
-    public BookTag addTagToBook(Long bookId, Long tagId) {
-        BookTag bookTag = new BookTag();
-        bookTag.setBookId(bookId);
-        bookTag.setTagId(tagId);
-        return bookTagRepository.save(bookTag);
+    public void saveBookTags(Long bookId, List<String> tagNames) {
+        for (String tagName : tagNames) {
+            Tag tag = save(tagName);
+            BookTag bookTag = new BookTag();
+            bookTag.setBookId(bookId);
+            bookTag.setTagId(tag.getId());
+            bookTagRepository.save(bookTag);
+        }
     }
 
     // 도서의 태그 연결 삭제
     @Transactional
     public void deleteByBookId(Long bookId) {
-        // 삭제 전 체크
-        List<BookTag> bookTags = bookTagRepository.findByBookId(bookId);
-        if (bookTags.isEmpty()) {
-            throw new BookNotFoundException(bookId);
-        }
         bookTagRepository.deleteByBookId(bookId);
     }
+
+    // 태그 이름으로 태그 조회
+    @Transactional(readOnly = true)
+    public List<Tag> findByName(String tagName) {
+        Tag tag = tagRepository.findByName(tagName);
+        return tag != null ? List.of(tag) : List.of();
+    }
+
 }

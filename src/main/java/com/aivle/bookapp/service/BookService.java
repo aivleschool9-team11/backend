@@ -4,18 +4,24 @@ package com.aivle.bookapp.service;
 import com.aivle.bookapp.domain.Book;
 import com.aivle.bookapp.exception.BookNotFoundException;
 import com.aivle.bookapp.repository.BookRepository;
+import com.aivle.bookapp.repository.BookTagRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 
+
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
 public class BookService {
     private final BookRepository bookRepository;
+    private final TagService tagService;
+    //private final BookEmbeddingService bookEmbeddingService;
+    private final BookTagRepository bookTagRepository;
 
     // 전체 도서 목록 조회
     @Transactional(readOnly = true)
@@ -36,6 +42,9 @@ public class BookService {
         Book saved = bookRepository.save(book);
 
         // 태그 저장
+        if (tags != null && !tags.isEmpty()) {
+            tagService.saveBookTags(saved.getId(), tags);
+        }
         // 임베딩 저장
         return saved;
     }
@@ -57,7 +66,8 @@ public class BookService {
 
         // 태그 재저장
         if (tags != null) {
-
+            tagService.deleteByBookId(id);
+            tagService.saveBookTags(id, tags);
         }
         // 임베딩 재저장
         if (embeddingJson != null && !embeddingJson.isBlank()){
@@ -72,6 +82,8 @@ public class BookService {
         if (!bookRepository.existsById(id)) {
             throw new BookNotFoundException(id);
         }
+        tagService.deleteByBookId(id);
+        //bookEmbeddingService.deleteByBookId(id);
         bookRepository.deleteById(id);
     }
 
@@ -102,9 +114,11 @@ public class BookService {
 
     // 특정 태그에 속한 도서 목록 조회
     @Transactional(readOnly = true)
-    public List<Book> findByTagName(String tagName){
-        // TagRepository 받으면 구현
-        return List.of();
+    public List<Book> findByTagName(String tagName) {
+        return tagService.findByName(tagName).stream()
+                .flatMap(tag -> bookTagRepository.findByTagId(tag.getId()).stream())
+                .map(bookTag -> findById(bookTag.getBookId()))
+                .collect(Collectors.toList());
     }
 
     // 키워드 검색 + 정렬
