@@ -2,12 +2,17 @@ package com.aivle.bookapp.service;
 
 
 import com.aivle.bookapp.domain.Book;
+import com.aivle.bookapp.domain.BookEmbedding;
 import com.aivle.bookapp.exception.BookNotFoundException;
+import com.aivle.bookapp.repository.BookEmbeddingRepository;
 import com.aivle.bookapp.repository.BookRepository;
 import com.aivle.bookapp.repository.BookTagRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+//import com.aivle.bookapp.domain.SearchLog;
+import com.aivle.bookapp.repository.BookEmbeddingRepository;
+import java.util.AbstractMap;
 
 
 
@@ -20,8 +25,10 @@ import java.util.stream.Collectors;
 public class BookService {
     private final BookRepository bookRepository;
     private final TagService tagService;
-    //private final BookEmbeddingService bookEmbeddingService;
+    private final BookEmbeddingService bookEmbeddingService;
     private final BookTagRepository bookTagRepository;
+    private final BookEmbeddingRepository bookEmbeddingRepository;
+    //private final SearchLogService searchLogService;
 
     // 전체 도서 목록 조회
     @Transactional(readOnly = true)
@@ -46,6 +53,16 @@ public class BookService {
             tagService.saveBookTags(saved.getId(), tags);
         }
         // 임베딩 저장
+        if (embeddingJson != null && !embeddingJson.isBlank()){
+            BookEmbedding embedding = BookEmbedding.builder()
+                    .bookId(saved.getId())
+                    .embeddingJson(embeddingJson)
+                    .embeddingModel("text-embedding-3-small")
+                    .embeddingDurationMs(embeddingDurationMs)
+                    .embeddingUpdatedAt(LocalDateTime.now())
+                    .build();
+            bookEmbeddingService.save(embedding);
+        }
         return saved;
     }
 
@@ -70,8 +87,15 @@ public class BookService {
             tagService.saveBookTags(id, tags);
         }
         // 임베딩 재저장
-        if (embeddingJson != null && !embeddingJson.isBlank()){
-
+        if (embeddingJson != null && !embeddingJson.isBlank()) {
+            BookEmbedding embedding = BookEmbedding.builder()
+                    .bookId(id)
+                    .embeddingJson(embeddingJson)
+                    .embeddingModel("text-embedding-3-small")
+                    .embeddingDurationMs(embeddingDurationMS)
+                    .embeddingUpdatedAt(LocalDateTime.now())
+                    .build();
+            bookEmbeddingService.save(embedding);
         }
         return updated;
     }
@@ -83,7 +107,7 @@ public class BookService {
             throw new BookNotFoundException(id);
         }
         tagService.deleteByBookId(id);
-        //bookEmbeddingService.deleteByBookId(id);
+        bookEmbeddingService.deleteByBookId(id);
         bookRepository.deleteById(id);
     }
 
@@ -108,7 +132,14 @@ public class BookService {
     @Transactional
     public Book updateEmbedding(Long id, String embeddingJson, Long embeddingDurationMs) {
         Book existing = findById(id);
-        //bookEmbeddingService.save(id, embeddingJson, embeddingDurationMs);
+        BookEmbedding embedding = BookEmbedding.builder()
+                .bookId(id)
+                .embeddingJson(embeddingJson)
+                .embeddingModel("text-embedding-3-small")
+                .embeddingDurationMs(embeddingDurationMs)
+                .embeddingUpdatedAt(LocalDateTime.now())
+                .build();
+        bookEmbeddingService.save(embedding);
         return existing;
     }
 
@@ -124,9 +155,14 @@ public class BookService {
     // 키워드 검색 + 정렬
     @Transactional(readOnly = true)
     public List<Book> findAllWithFilter(String keyword, String sort, String tag){
-        List<Book> result = (keyword == null || keyword.isBlank())
-                ? bookRepository.findAll()
-                : bookRepository.findByTitleContainingOrAuthorContaining(keyword, keyword);
+        List<Book> result;
+        if (tag != null && !tag.isEmpty()) {
+            result = findByTagName(tag);
+        } else if (keyword != null && !keyword.isBlank()) {
+            result = bookRepository.findByTitleContainingOrAuthorContaining(keyword, keyword);
+        } else {
+            result = bookRepository.findAll();
+        }
         if ("newest".equals(sort)) result.sort((a, b) -> b.getCreatedAt().compareTo(a.getCreatedAt()));
         else if ("oldest".equals(sort)) result.sort((a, b) -> a.getCreatedAt().compareTo(b.getCreatedAt()));
         else if ("title".equals(sort)) result.sort((a, b) -> a.getTitle().compareTo(b.getTitle()));
@@ -141,7 +177,53 @@ public class BookService {
     @Transactional(readOnly = true)
     public List<Book> semanticSearch(float[] queryVector, String query, int topK){
         // bookEmbeddingService에서 전체 임베딩 조회 후 코사인 유사도 계산
+        List<BookEmbedding> allEmbeddings = bookEmbeddingRepository.findAll();
+
         // searchLogService.saveSearchLog() 호출 (searchType: "SEMANTIC")
+        List<Book> results = allEmbeddings.stream()
+                .map(bookEmbedding -> {
+                    float[] vector = parseEmbeddingJson(bookEmbedding.getEmbeddingJson());
+                    double score = cosineSimilarity(queryVector, vector);
+                    return new AbstractMap.SimpleEntry<>(bookEmbedding.getBookId(), score);
+                })
+                .filter(entry -> entry.getValue() > 0)
+                .sorted((a, b) -> Double.compare(b.getValue(), a.getValue()))
+                .limit(topK)
+                .map(entry -> findById(entry.getKey()))
+                .collect(Collectors.toList());
+
+        // 검색 로그 저장
+
         return List.of();
     }
+
+    // embeddingJson 문자열을 float[]로 변환
+    private float[] parseEmbeddingJson(String embeddingJson) {
+        try {
+            embeddingJson = embeddingJson.trim().replaceAll("[\\[\\]]", "");
+            String[] parts = embeddingJson.split(",");
+            float[] vector = new float[parts.length];
+            for (int i = 0; i < parts.length; i++) {
+                vector[i] = Float.parseFloat(parts[i].trim());
+            }
+            return vector;
+        } catch (Exception e) {
+            return new float[0];
+        }
+    }
+
+    // 코사인 유사도 계산
+    private double cosineSimilarity(float[] vectorA, float[] vectorB) {
+        if (vectorA.length != vectorB.length) return 0;
+        double dot = 0, normA = 0, normB = 0;
+        for (int i = 0; i < vectorA.length; i++) {
+            dot += vectorA[i] * vectorB[i];
+            normA += vectorA[i] * vectorA[i];
+            normB += vectorB[i] * vectorB[i];
+        }
+        if (normA == 0 || normB == 0) return 0;
+        return dot / (Math.sqrt(normA) * Math.sqrt(normB));
+    }
 }
+
+
