@@ -113,4 +113,25 @@ public class BookController {
         Book updatedBook = bookService.updateLikes(id, likes);
         return ResponseEntity.ok(updatedBook);
     }
+
+    /**
+     * 7. AI 의미 검색 (POST /books/semantic-search)
+     * - body: { "queryVector": [...], "topK": 5 }
+     * - React에서 OpenAI로 변환한 검색어 벡터를 전달
+     * - Spring Boot에서 코사인 유사도 계산 후 유사 도서 반환
+     */
+    @PostMapping("/semantic-search")
+    public ResponseEntity<List<Book>> semanticSearch(@RequestBody Map<String, Object> body) {
+        List<Double> vectorList = (List<Double>) body.get("queryVector");
+        int topK = body.containsKey("topK") ? (int) body.get("topK") : 5;
+
+        float[] queryVector = new float[vectorList.size()];
+        for (int i = 0; i < vectorList.size(); i++) {
+            queryVector[i] = vectorList.get(i).floatValue();
+        }
+
+        log.info("Request to semantic search - topK: {}", topK);
+        List<Book> result = bookService.semanticSearch(queryVector, null, topK);
+        return ResponseEntity.ok(result);
+    }
 }

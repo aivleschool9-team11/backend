@@ -11,7 +11,6 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 //import com.aivle.bookapp.domain.SearchLog;
-import com.aivle.bookapp.repository.BookEmbeddingRepository;
 import java.util.AbstractMap;
 
 
@@ -193,7 +192,7 @@ public class BookService {
 
         // 검색 로그 저장
 
-        return List.of();
+        return results;
     }
 
     // embeddingJson 문자열을 float[]로 변환
