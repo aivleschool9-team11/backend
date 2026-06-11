@@ -102,14 +102,14 @@ public class BookController {
     }
 
     /**
-     * 6. 좋아요 수 증가/감소 (PATCH /books/{id}/likes)
-     * - body: { "likes": 1 } 또는 { "likes": -1 }
-     * - 유저별 좋아요 상태는 프론트 localStorage 관리, 백엔드는 전체 카운트만 증감
+     * 6. 좋아요 수 설정 (PATCH /books/{id}/likes)
+     * - body: { "likes": 5 } — 프론트가 계산한 '새 좋아요 총합'을 그대로 받아 설정
+     * - 유저별 좋아요 상태는 프론트 localStorage 관리
      */
     @PatchMapping("/{id}/likes")
     public ResponseEntity<Book> updateLikes(@PathVariable Long id, @RequestBody Map<String, Integer> body) {
         int likes = body.getOrDefault("likes", 0);
-        log.info("Request to update likes for book id: {}, delta: {}", id, likes);
+        log.info("Request to set likes for book id: {}, likes: {}", id, likes);
         Book updatedBook = bookService.updateLikes(id, likes);
         return ResponseEntity.ok(updatedBook);
     }

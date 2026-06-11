@@ -111,12 +111,11 @@ public class BookService {
         bookRepository.deleteById(id);
     }
 
-    // 좋아요 증가/감소
+    // 좋아요 수 설정 (프론트가 계산한 새 총합을 그대로 반영)
     @Transactional
     public Book updateLikes(Long id, int likes) {
         Book existing = findById(id);
-        int current = existing.getLikes() == null ? 0: existing.getLikes();
-        existing.setLikes(current + likes);
+        existing.setLikes(Math.max(0, likes));
         return bookRepository.save(existing);
     }
 
