@@ -11,7 +11,6 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 //import com.aivle.bookapp.domain.SearchLog;
-import com.aivle.bookapp.repository.BookEmbeddingRepository;
 import java.util.AbstractMap;
 
 
@@ -175,6 +174,8 @@ public class BookService {
     // AI 의미 검색 + 코사인 유사도 계산
     @Transactional(readOnly = true)
     public List<Book> semanticSearch(float[] queryVector, String query, int topK){
+        long startTime = System.currentTimeMillis();
+
         // bookEmbeddingService에서 전체 임베딩 조회 후 코사인 유사도 계산
         List<BookEmbedding> allEmbeddings = bookEmbeddingRepository.findAll();
 
