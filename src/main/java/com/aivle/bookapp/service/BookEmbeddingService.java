@@ -29,10 +29,11 @@ public class BookEmbeddingService {
 
     @Transactional
     public void deleteByBookId(Long bookId) {
-        if(bookEmbeddingRepository.existsByBookId(bookId))
+        // 정리용 삭제이므로 idempotent: 임베딩이 없으면 조용히 통과
+        // (임베딩 없는 책 삭제/임베딩 최초 저장 시 404 나던 버그 수정)
+        if (bookEmbeddingRepository.existsByBookId(bookId)) {
             bookEmbeddingRepository.deleteByBookId(bookId);
-        else
-            throw new BookEmbeddingNotFoundException(bookId);
+        }
     }
 
 
