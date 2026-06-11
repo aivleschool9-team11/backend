@@ -29,10 +29,9 @@ public class BookEmbeddingService {
 
     @Transactional
     public void deleteByBookId(Long bookId) {
-        if(bookEmbeddingRepository.existsByBookId(bookId))
+        if(bookEmbeddingRepository.existsByBookId(bookId)) {
             bookEmbeddingRepository.deleteByBookId(bookId);
-        else
-            throw new BookEmbeddingNotFoundException(bookId);
+        }
     }
 
 }

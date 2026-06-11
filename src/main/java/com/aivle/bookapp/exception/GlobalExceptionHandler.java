@@ -33,6 +33,16 @@ public class GlobalExceptionHandler {
         return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(body);
     }
 
+    // 400 — 잘못된 JSON 형식 또는 데이터 타입 오류
+    @ExceptionHandler(org.springframework.http.converter.HttpMessageNotReadableException.class)
+    public ResponseEntity<Map<String, String>> handleJsonError(org.springframework.http.converter.HttpMessageNotReadableException e) {
+        Map<String, String> body = Map.of(
+            "error", "Bad Request",
+            "message", "요청 데이터 형식이 올바르지 않습니다. 필드 타입을 확인해주세요."
+        );
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(body);
+    }
+
     // 500 — 그 외 서버 오류
     @ExceptionHandler(Exception.class)
     public ResponseEntity<Map<String, String>> handleException(Exception e) {

@@ -7,6 +7,8 @@ import com.aivle.bookapp.exception.BookNotFoundException;
 import com.aivle.bookapp.repository.BookEmbeddingRepository;
 import com.aivle.bookapp.repository.BookRepository;
 import com.aivle.bookapp.repository.BookTagRepository;
+
+import com.aivle.bookapp.repository.TagRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -25,6 +27,7 @@ import java.util.stream.Collectors;
 public class BookService {
     private final BookRepository bookRepository;
     private final TagService tagService;
+    private final TagRepository tagRepository;
     private final BookEmbeddingService bookEmbeddingService;
     private final BookTagRepository bookTagRepository;
     private final BookEmbeddingRepository bookEmbeddingRepository;
@@ -33,14 +36,28 @@ public class BookService {
     // 전체 도서 목록 조회
     @Transactional(readOnly = true)
     public List<Book> findAll(){
-        return bookRepository.findAll();
+        List<Book> books = bookRepository.findAll();
+        books.forEach(this::populateTags);
+        return books;
     }
 
     // 특정 도서 단건 조회
     @Transactional(readOnly = true)
     public Book findById(Long id){
-        return bookRepository.findById(id)
+        Book book = bookRepository.findById(id)
                 .orElseThrow(() -> new BookNotFoundException(id));
+        populateTags(book);
+        return book;
+    }
+
+    // 도서 객체에 태그 리스트 채우기 (BookTag 테이블 기준)
+    private void populateTags(Book book) {
+        List<String> tagNames = bookTagRepository.findByBookId(book.getId()).stream()
+                .map(bt -> tagRepository.findById(bt.getTagId()).orElse(null))
+                .filter(java.util.Objects::nonNull)
+                .map(com.aivle.bookapp.domain.Tag::getName)
+                .collect(Collectors.toList());
+        book.setTags(tagNames);
     }
 
     // 새 도서 등록 + 태그 저장 + 임베딩 저장
@@ -48,10 +65,14 @@ public class BookService {
     public Book create(Book book, List<String> tags, String embeddingJson, Long embeddingDurationMs){
         Book saved = bookRepository.save(book);
 
-        // 태그 저장
+        // 태그 저장 (BookTag 테이블)
         if (tags != null && !tags.isEmpty()) {
             tagService.saveBookTags(saved.getId(), tags);
         }
+        
+        // 결과 반환 시 태그 정보 채우기
+        populateTags(saved);
+
         // 임베딩 저장
         if (embeddingJson != null && !embeddingJson.isBlank()){
             BookEmbedding embedding = BookEmbedding.builder()
@@ -81,11 +102,15 @@ public class BookService {
 
         Book updated = bookRepository.save(existing);
 
-        // 태그 재저장
+        // 태그 재저장 (BookTag 테이블)
         if (tags != null) {
             tagService.deleteByBookId(id);
             tagService.saveBookTags(id, tags);
         }
+
+        // 결과 반환 시 태그 정보 채우기
+        populateTags(updated);
+
         // 임베딩 재저장
         if (embeddingJson != null && !embeddingJson.isBlank()) {
             BookEmbedding embedding = BookEmbedding.builder()
@@ -120,6 +145,18 @@ public class BookService {
         return bookRepository.save(existing);
     }
 
+    // 도서 태그 수정
+    @Transactional
+    public Book updateTags(Long id, List<String> tags) {
+        Book existing = findById(id);
+        if (tags != null) {
+            tagService.deleteByBookId(id);
+            tagService.saveBookTags(id, tags);
+        }
+        populateTags(existing);
+        return existing;
+    }
+
     // AI 표지 저장
     @Transactional
     public Book updateCover(Long id, String coverImageUrl) {
@@ -149,6 +186,14 @@ public class BookService {
         return tagService.findByName(tagName).stream()
                 .flatMap(tag -> bookTagRepository.findByTagId(tag.getId()).stream())
                 .map(bookTag -> findById(bookTag.getBookId()))
+                .collect(Collectors.toList());
+    }
+
+    // 모든 고유 태그 목록 조회
+    @Transactional(readOnly = true)
+    public List<String> findAllUniqueTags() {
+        return tagService.findAll().stream()
+                .map(com.aivle.bookapp.domain.Tag::getName)
                 .collect(Collectors.toList());
     }
 
