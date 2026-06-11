@@ -35,4 +35,6 @@ public class BookEmbeddingService {
             throw new BookEmbeddingNotFoundException(bookId);
     }
 
+
+
 }

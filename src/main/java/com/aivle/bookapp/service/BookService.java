@@ -11,7 +11,6 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 //import com.aivle.bookapp.domain.SearchLog;
-import com.aivle.bookapp.repository.BookEmbeddingRepository;
 import java.util.AbstractMap;
 
 
@@ -88,6 +87,7 @@ public class BookService {
         }
         // 임베딩 재저장
         if (embeddingJson != null && !embeddingJson.isBlank()) {
+            bookEmbeddingService.deleteByBookId(id);
             BookEmbedding embedding = BookEmbedding.builder()
                     .bookId(id)
                     .embeddingJson(embeddingJson)
@@ -131,6 +131,7 @@ public class BookService {
     @Transactional
     public Book updateEmbedding(Long id, String embeddingJson, Long embeddingDurationMs) {
         Book existing = findById(id);
+        bookEmbeddingService.deleteByBookId(id);
         BookEmbedding embedding = BookEmbedding.builder()
                 .bookId(id)
                 .embeddingJson(embeddingJson)
@@ -175,6 +176,8 @@ public class BookService {
     // AI 의미 검색 + 코사인 유사도 계산
     @Transactional(readOnly = true)
     public List<Book> semanticSearch(float[] queryVector, String query, int topK){
+        long startTime = System.currentTimeMillis();
+
         // bookEmbeddingService에서 전체 임베딩 조회 후 코사인 유사도 계산
         List<BookEmbedding> allEmbeddings = bookEmbeddingRepository.findAll();
 
