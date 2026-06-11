@@ -1,12 +1,16 @@
 package com.aivle.bookapp.controller;
 
 import com.aivle.bookapp.domain.Book;
+import com.aivle.bookapp.domain.SearchLog;
 import com.aivle.bookapp.service.BookService;
+import com.aivle.bookapp.service.SearchLogService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.time.LocalDateTime;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -20,10 +24,45 @@ import java.util.Map;
 public class SearchController {
 
     private final BookService bookService;
+    private final SearchLogService searchLogService;
 
-    // TODO: 1. 통합 검색 (POST /search)
-    // - body: { "query": "검색어", "sort": "newest", "tag": "태그" }
-    // - 키워드/태그/정렬 검색 실행 + 검색 로그 자동 저장
+    /**
+     * 1. 통합 검색 (POST /search)
+     * - body: { "query": "검색어", "sort": "newest", "tag": "태그" }
+     * - 키워드/태그/정렬 검색 실행 + 검색 로그 자동 저장
+     * - 모든 파라미터 선택값, 없으면 전체 조회
+     */
+    @PostMapping
+    public ResponseEntity<Map<String, Object>> search(@RequestBody Map<String, String> body) {
+        String query = body.get("query");
+        String sort = body.get("sort");
+        String tag = body.get("tag");
+
+        log.info("Request to search - query: {}, sort: {}, tag: {}", query, sort, tag);
+
+        long startTime = System.currentTimeMillis();
+        List<Book> books = bookService.findAllWithFilter(query, sort, tag);
+        long durationMs = System.currentTimeMillis() - startTime;
+
+        Map<String, Object> response = new HashMap<>();
+        response.put("books", books);
+
+        // 검색어 있을 때만 로그 저장
+        if (query != null && !query.isBlank()) {
+            SearchLog searchLog = new SearchLog();
+            searchLog.setSearchType("KEYWORD");
+            searchLog.setQuery(query);
+            searchLog.setMatchedBookCount(books.size());
+            searchLog.setDurationMs(durationMs);
+            searchLog.setSearchedAt(LocalDateTime.now());
+            SearchLog saved = searchLogService.saveSearchLog(searchLog);
+            response.put("searchLogId", saved.getId());
+        } else {
+            response.put("searchLogId", null);
+        }
+
+        return ResponseEntity.ok(response);
+    }
 
     /**
      * 2. AI 의미 검색 (POST /search/semantic)
@@ -32,8 +71,10 @@ public class SearchController {
      * - Spring Boot에서 코사인 유사도 계산 후 유사 도서 반환
      * - 검색 로그 자동 저장
      */
+    // TODO: DTO 도입 시 SemanticSearchRequest로 교체 예정
+    // (현재 Map<String, Object> 사용으로 unchecked 경고 발생)
     @PostMapping("/semantic")
-    public ResponseEntity<List<Book>> semanticSearch(@RequestBody Map<String, Object> body) {
+    public ResponseEntity<Map<String, Object>> semanticSearch(@RequestBody Map<String, Object> body) {
         List<Double> vectorList = (List<Double>) body.get("queryVector");
         int topK = body.containsKey("topK") ? (int) body.get("topK") : 5;
 
@@ -43,8 +84,30 @@ public class SearchController {
         }
 
         log.info("Request to semantic search - topK: {}", topK);
-        List<Book> result = bookService.semanticSearch(queryVector, null, topK);
-        return ResponseEntity.ok(result);
+
+        long startTime = System.currentTimeMillis();
+        List<Book> books = bookService.semanticSearch(queryVector, null, topK);
+        long durationMs = System.currentTimeMillis() - startTime;
+
+        Map<String, Object> response = new HashMap<>();
+        response.put("books", books);
+
+        // 검색어 있을 때만 로그 저장
+        String query = body.containsKey("query") ? (String) body.get("query") : null;
+        if (query != null && !query.isBlank()) {
+            SearchLog searchLog = new SearchLog();
+            searchLog.setSearchType("SEMANTIC");
+            searchLog.setQuery(query);
+            searchLog.setMatchedBookCount(books.size());
+            searchLog.setDurationMs(durationMs);
+            searchLog.setSearchedAt(LocalDateTime.now());
+            SearchLog saved = searchLogService.saveSearchLog(searchLog);
+            response.put("searchLogId", saved.getId());
+        } else {
+            response.put("searchLogId", null);
+        }
+
+        return ResponseEntity.ok(response);
     }
 
     // TODO: 3. 검색 결과 클릭 로그 저장 (POST /search/{searchLogId}/click)
