@@ -29,7 +29,6 @@ import java.util.List;
 public class BookController {
 
     private final BookService bookService;
-    private final TagService  tagService;
 
     /**
      * 1. 도서 목록 조회 (통합 검색, 정렬, 태그 필터링 포함)

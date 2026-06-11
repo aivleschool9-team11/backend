@@ -1,6 +1,5 @@
 package com.aivle.bookapp.controller;
 
-import com.aivle.bookapp.domain.Book;
 import com.aivle.bookapp.domain.SearchLog;
 import com.aivle.bookapp.domain.SearchResultClick;
 import com.aivle.bookapp.dto.response.BookSummaryResponse;
