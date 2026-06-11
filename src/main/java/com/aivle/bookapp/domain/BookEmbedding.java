@@ -1,6 +1,7 @@
 package com.aivle.bookapp.domain;
 
 import jakarta.persistence.*;
+import jakarta.validation.constraints.NotBlank;
 import lombok.*;
 import java.time.LocalDateTime;
 
@@ -20,9 +21,11 @@ public class BookEmbedding {
     @Column(name = "book_id", nullable = false, unique = true)
     private Long bookId;
 
+    @NotBlank(message = "임베딩 데이터는 필수입니다.")
     @Column(name = "embedding_json", columnDefinition = "TEXT", nullable = false)
     private String embeddingJson;
 
+    @NotBlank(message = "임베딩 모델명은 필수입니다.")
     @Column(name = "embedding_model", nullable = false)
     private String embeddingModel;
 

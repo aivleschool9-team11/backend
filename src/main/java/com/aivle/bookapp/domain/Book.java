@@ -5,6 +5,8 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
 import lombok.*;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
 
 @Entity
 @Table(name = "books")
@@ -39,6 +41,17 @@ public class Book {
 
     @Column(name = "cover_image_url")
     private String coverImageUrl;
+
+    // === 요청/응답 전용 (DB 미저장). 태그는 BookTag 테이블에 저장됨. 추후 DTO로 분리 예정 ===
+    @Transient
+    @Builder.Default
+    private List<String> tags = new ArrayList<>();
+
+    @Transient
+    private String embeddingJson;
+
+    @Transient
+    private Long embeddingDurationMs;
 
     @Builder.Default
     @Column(nullable = false)

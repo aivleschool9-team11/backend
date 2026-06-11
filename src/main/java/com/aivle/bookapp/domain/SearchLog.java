@@ -1,6 +1,7 @@
 package com.aivle.bookapp.domain;
 
 import jakarta.persistence.*;
+import jakarta.validation.constraints.NotBlank;
 import lombok.*;
 import java.time.LocalDateTime;
 
@@ -17,9 +18,11 @@ public class SearchLog {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    @NotBlank(message = "검색 유형은 필수입니다.")
     @Column(name = "search_type", nullable = false)
     private String searchType;
 
+    @NotBlank(message = "검색어는 필수입니다.")
     @Column(nullable = false)
     private String query;
 
