@@ -87,6 +87,7 @@ public class BookService {
         }
         // 임베딩 재저장
         if (embeddingJson != null && !embeddingJson.isBlank()) {
+            bookEmbeddingService.deleteByBookId(id);
             BookEmbedding embedding = BookEmbedding.builder()
                     .bookId(id)
                     .embeddingJson(embeddingJson)
@@ -130,6 +131,7 @@ public class BookService {
     @Transactional
     public Book updateEmbedding(Long id, String embeddingJson, Long embeddingDurationMs) {
         Book existing = findById(id);
+        bookEmbeddingService.deleteByBookId(id);
         BookEmbedding embedding = BookEmbedding.builder()
                 .bookId(id)
                 .embeddingJson(embeddingJson)
