@@ -75,7 +75,7 @@ public class BookService {
 
     // 새 도서 등록 + 태그 저장 + 임베딩 저장
     @Transactional
-    public Book create(Book book, List<String> tags, String embeddingJson, Long embeddingDurationMs){
+    public Book create(Book book, List<String> tags, List<Float> embeddingJson, Long embeddingDurationMs){
         Book saved = bookRepository.save(book);
 
         // 태그 저장
@@ -83,10 +83,13 @@ public class BookService {
             tagService.saveBookTags(saved.getId(), tags);
         }
         // 임베딩 저장
-        if (embeddingJson != null && !embeddingJson.isBlank()){
+        if (embeddingJson != null && !embeddingJson.isEmpty()){
+            String jsonStr = embeddingJson.stream()
+                    .map(String::valueOf)
+                    .collect(Collectors.joining(",", "[", "]"));
             BookEmbedding embedding = BookEmbedding.builder()
                     .bookId(saved.getId())
-                    .embeddingJson(embeddingJson)
+                    .embeddingJson(jsonStr)
                     .embeddingModel("text-embedding-3-small")
                     .embeddingDurationMs(embeddingDurationMs)
                     .embeddingUpdatedAt(LocalDateTime.now())
@@ -100,7 +103,7 @@ public class BookService {
 
     // 도서 부분 수정
     @Transactional
-    public Book update(Long id, Book book, List<String> tags, String embeddingJson, Long embeddingDurationMS){
+    public Book update(Long id, Book book, List<String> tags, List<Float> embeddingJson, Long embeddingDurationMS){
         Book existing = findById(id);
 
         if (book.getTitle() != null) existing.setTitle(book.getTitle());
@@ -118,11 +121,14 @@ public class BookService {
             tagService.saveBookTags(id, tags);
         }
         // 임베딩 재저장
-        if (embeddingJson != null && !embeddingJson.isBlank()) {
+        if (embeddingJson != null && !embeddingJson.isEmpty()) {
             bookEmbeddingService.deleteByBookId(id);
+            String jsonStr = embeddingJson.stream()
+                    .map(String::valueOf)
+                    .collect(Collectors.joining(",", "[", "]"));
             BookEmbedding embedding = BookEmbedding.builder()
                     .bookId(id)
-                    .embeddingJson(embeddingJson)
+                    .embeddingJson(jsonStr)
                     .embeddingModel("text-embedding-3-small")
                     .embeddingDurationMs(embeddingDurationMS)
                     .embeddingUpdatedAt(LocalDateTime.now())
@@ -162,12 +168,15 @@ public class BookService {
 
     // 임베딩 백필
     @Transactional
-    public Book updateEmbedding(Long id, String embeddingJson, Long embeddingDurationMs) {
+    public Book updateEmbedding(Long id, List<Float> embeddingJson, Long embeddingDurationMs) {
         Book existing = findById(id);
         bookEmbeddingService.deleteByBookId(id);
+        String jsonStr = embeddingJson.stream()
+                .map(String::valueOf)
+                .collect(Collectors.joining(",", "[", "]"));
         BookEmbedding embedding = BookEmbedding.builder()
                 .bookId(id)
-                .embeddingJson(embeddingJson)
+                .embeddingJson(jsonStr)
                 .embeddingModel("text-embedding-3-small")
                 .embeddingDurationMs(embeddingDurationMs)
                 .embeddingUpdatedAt(LocalDateTime.now())

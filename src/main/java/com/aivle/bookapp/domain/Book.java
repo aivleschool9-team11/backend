@@ -48,7 +48,7 @@ public class Book {
     private List<String> tags = new ArrayList<>();
 
     @Transient
-    private String embeddingJson;
+    private List<Float> embeddingJson;
 
     @Transient
     private Long embeddingDurationMs;
