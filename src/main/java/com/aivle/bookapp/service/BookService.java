@@ -3,10 +3,14 @@ package com.aivle.bookapp.service;
 
 import com.aivle.bookapp.domain.Book;
 import com.aivle.bookapp.domain.BookEmbedding;
+import com.aivle.bookapp.domain.Tag;
 import com.aivle.bookapp.exception.BookNotFoundException;
 import com.aivle.bookapp.repository.BookEmbeddingRepository;
 import com.aivle.bookapp.repository.BookRepository;
 import com.aivle.bookapp.repository.BookTagRepository;
+import com.aivle.bookapp.repository.TagRepository;
+
+import java.util.Objects;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -27,19 +31,46 @@ public class BookService {
     private final BookEmbeddingService bookEmbeddingService;
     private final BookTagRepository bookTagRepository;
     private final BookEmbeddingRepository bookEmbeddingRepository;
+    private final TagRepository tagRepository;
     //private final SearchLogService searchLogService;
 
     // 전체 도서 목록 조회
     @Transactional(readOnly = true)
     public List<Book> findAll(){
-        return bookRepository.findAll();
+        List<Book> books = bookRepository.findAll();
+        books.forEach(this::populateTags);
+        return books;
     }
 
     // 특정 도서 단건 조회
     @Transactional(readOnly = true)
     public Book findById(Long id){
-        return bookRepository.findById(id)
+        Book book = bookRepository.findById(id)
                 .orElseThrow(() -> new BookNotFoundException(id));
+        populateTags(book);
+        return book;
+    }
+
+    // 도서 객체에 태그 리스트 채우기 (BookTag → Tag 조립, 응답용)
+    private void populateTags(Book book) {
+        List<String> tagNames = bookTagRepository.findByBookId(book.getId()).stream()
+                .map(bt -> tagRepository.findById(bt.getTagId()).orElse(null))
+                .filter(Objects::nonNull)
+                .map(Tag::getName)
+                .collect(Collectors.toList());
+        book.setTags(tagNames);
+    }
+
+    // 태그만 별도 수정 (PATCH /books/{id}/tags)
+    @Transactional
+    public Book updateTags(Long id, List<String> tags) {
+        Book existing = findById(id);
+        tagService.deleteByBookId(id);
+        if (tags != null && !tags.isEmpty()) {
+            tagService.saveBookTags(id, tags);
+        }
+        populateTags(existing);
+        return existing;
     }
 
     // 새 도서 등록 + 태그 저장 + 임베딩 저장
@@ -62,6 +93,7 @@ public class BookService {
                     .build();
             bookEmbeddingService.save(embedding);
         }
+        populateTags(saved);
         return saved;
     }
 
@@ -97,6 +129,7 @@ public class BookService {
                     .build();
             bookEmbeddingService.save(embedding);
         }
+        populateTags(updated);
         return updated;
     }
 

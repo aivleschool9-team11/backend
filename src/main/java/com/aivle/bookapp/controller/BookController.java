@@ -67,8 +67,8 @@ public class BookController {
     @PostMapping
     public ResponseEntity<Book> createBook(@Valid @RequestBody Book book) {
         log.info("Request to create book: {}", book.getTitle());
-        // TODO: 태그/임베딩은 요청 DTO 스펙 확정 후 연결 (현재는 도서 기본 정보만 저장)
-        Book savedBook = bookService.create(book, null, null, null);
+        // 요청 body의 tags / embedding 을 그대로 전달 (Book 의 @Transient 필드)
+        Book savedBook = bookService.create(book, book.getTags(), book.getEmbeddingJson(), book.getEmbeddingDurationMs());
 
         URI location = ServletUriComponentsBuilder.fromCurrentRequest()
                 .path("/{id}")
@@ -86,8 +86,8 @@ public class BookController {
     @PatchMapping("/{id}")
     public ResponseEntity<Book> updateBook(@PathVariable Long id, @RequestBody Book book) {
         log.info("Request to update book id: {}", id);
-        // TODO: 태그/임베딩은 요청 DTO 스펙 확정 후 연결 (현재는 도서 기본 정보만 수정)
-        Book updatedBook = bookService.update(id, book, null, null, null);
+        // 요청 body의 tags / embedding 을 그대로 전달 (Book 의 @Transient 필드)
+        Book updatedBook = bookService.update(id, book, book.getTags(), book.getEmbeddingJson(), book.getEmbeddingDurationMs());
         return ResponseEntity.ok(updatedBook);
     }
 
@@ -111,6 +111,39 @@ public class BookController {
         int likes = body.getOrDefault("likes", 0);
         log.info("Request to set likes for book id: {}, likes: {}", id, likes);
         Book updatedBook = bookService.updateLikes(id, likes);
+        return ResponseEntity.ok(updatedBook);
+    }
+
+    /**
+     * 7. 도서 태그 수정 (PATCH /books/{id}/tags)
+     * - body: { "tags": ["판타지", "모험"] }
+     */
+    @PatchMapping("/{id}/tags")
+    public ResponseEntity<Book> updateTags(@PathVariable Long id, @RequestBody Book bookRequest) {
+        log.info("Request to update tags for book id: {}", id);
+        Book updatedBook = bookService.updateTags(id, bookRequest.getTags());
+        return ResponseEntity.ok(updatedBook);
+    }
+
+    /**
+     * 8. AI 표지 저장 (PATCH /books/{id}/cover)
+     * - body: { "coverImageUrl": "https://..." }
+     */
+    @PatchMapping("/{id}/cover")
+    public ResponseEntity<Book> updateBookCover(@PathVariable Long id, @RequestBody Book bookRequest) {
+        log.info("Request to update cover for book id: {}", id);
+        Book updatedBook = bookService.updateCover(id, bookRequest.getCoverImageUrl());
+        return ResponseEntity.ok(updatedBook);
+    }
+
+    /**
+     * 9. 도서 임베딩 백필 (PATCH /books/{id}/embedding)
+     * - body: { "embeddingJson": "...", "embeddingDurationMs": 123 }
+     */
+    @PatchMapping("/{id}/embedding")
+    public ResponseEntity<Book> updateBookEmbedding(@PathVariable Long id, @RequestBody Book bookRequest) {
+        log.info("Request to update embedding for book id: {}", id);
+        Book updatedBook = bookService.updateEmbedding(id, bookRequest.getEmbeddingJson(), bookRequest.getEmbeddingDurationMs());
         return ResponseEntity.ok(updatedBook);
     }
 }
