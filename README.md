@@ -388,12 +388,23 @@ private double cosineSimilarity(float[] a, float[] b) {
   // Backend: 표지 이미지 업로드 (파일 저장 → URL 반환)
   @PostMapping("/upload-image")
   public ResponseEntity<Map<String, String>> uploadImage(@RequestParam("file") MultipartFile file) throws IOException {
+      Path uploadDir = Paths.get("uploads").toAbsolutePath().normalize();   // 절대경로
+      Files.createDirectories(uploadDir);
       String fileName = UUID.randomUUID() + ".png";
-      file.transferTo(new File("./uploads/" + fileName));
+      Files.copy(file.getInputStream(), uploadDir.resolve(fileName), StandardCopyOption.REPLACE_EXISTING);
       return ResponseEntity.ok(Map.of("url", "http://localhost:8080/uploads/" + fileName));
   }
   ```
 - **회고**: "Base64 인코딩 = 매우 긴 문자열"이라는 데이터 특성을 간과한 사례. **대용량 미디어는 텍스트 컬럼에 문자열로 저장하기보다, 파일로 업로드하고 URL만 저장**하는 것이 적절하다는 점을 학습.
+
+### 📁 업로드 파일 저장 경로 오류 (상대경로 → Tomcat 임시 디렉토리)
+- **증상**: `POST /books/upload-image` 시 `500`. `java.io.FileNotFoundException: ...\work\Tomcat\...\uploads\xxx.png (지정된 경로를 찾을 수 없습니다)`
+- **원인**: 저장 경로를 `new File("./uploads/...")` 처럼 **상대경로**로 두면, 실행 환경에 따라 작업 디렉토리가 프로젝트 루트가 아닌 **Tomcat 임시 폴더**로 잡힘 → 그 위치에 `uploads` 디렉토리가 없고, `MultipartFile.transferTo()`가 디렉토리 자동 생성 없이 실패.
+- **해결**:
+  1. 저장 경로를 **절대경로**로 변환 — `Paths.get("uploads").toAbsolutePath().normalize()`
+  2. `transferTo()` 대신 **`Files.copy(file.getInputStream(), …, REPLACE_EXISTING)`** 사용
+  3. 정적 리소스 핸들러(`/uploads/**`)도 **동일 절대경로**를 가리키도록 일치 → 업로드 후 이미지 정상 표시
+- **회고**: 파일 I/O는 실행 환경마다 달라지는 **상대경로 의존을 피하고 절대경로로 명시**해야 안정적이며, 저장 경로와 서빙 경로를 같은 기준으로 일치시켜야 함.
 
 ### 기타 해결한 이슈
 | 증상 | 원인 | 해결 |
