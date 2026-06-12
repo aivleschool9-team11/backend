@@ -22,9 +22,10 @@
 ### 3. AI 의미(시맨틱) 검색
 - 프론트가 OpenAI Embedding으로 변환한 쿼리 벡터를 받아 **코사인 유사도** 연산 → 자연어 의미 기반 도서 추천
 
-### 4. ⭐ 검색·클릭 행동 로그 (Outcome 측정)
-- 검색 로그(`SearchLog`) + 결과 클릭 로그(`SearchResultClick`) 자동 수집
-- "기능을 만들었다(Output)"가 아니라 **"사용자가 실제로 클릭하는가(Outcome)"** 를 측정 — CTR·랭킹 품질·키워드 vs 시맨틱 성과 비교 가능
+### 4. ⭐ 검색·클릭 행동 로그 — Outcome(성과) 관점 설계
+- 본 프로젝트의 차별점으로, 강의에서 다룬 **Output → Outcome 관점**을 서비스 설계에 반영했습니다.
+- 기능의 *구현 여부(Output)* 를 넘어, **그 기능이 실제 사용자 행동으로 이어지는지(Outcome)** 를 측정하기 위해 모든 검색(`SearchLog`)과 그 결과 클릭(`SearchResultClick`)을 기록하고, 응답의 `searchLogId`로 둘을 연결합니다.
+- 노출 순위(`rankPosition`)·유사도(`similarityScore`)까지 함께 수집하여, **CTR(클릭률)·랭킹 품질·키워드 vs AI 의미 검색 성과 비교** 등 서비스가 실제로 잘 작동하는지를 정량적으로 분석할 수 있습니다.
 
 ### 5. 견고한 예외 처리
 - 사용자 정의 예외(`BookNotFoundException` 등) + 전역 예외 처리(`@RestControllerAdvice`)
@@ -347,23 +348,25 @@ private double cosineSimilarity(float[] a, float[] b) {
 }
 ```
 
-#### ⑤ ⭐ 검색·클릭 행동 로그 — Outcome(성과) 측정 기반
-> 단순히 *"검색·추천 기능을 만들었다"(Output)* 에 그치지 않고, ***"사용자가 그 결과를 실제로 클릭하는가"(Outcome)*** 를 측정하기 위한 데이터 파이프라인입니다.
+#### ⑤ 검색·클릭 행동 로그 — Outcome(성과) 관점 설계
 
-- **검색 로그 (`SearchLog`)** — 모든 검색에 대해 `searchType`(KEYWORD/SEMANTIC) · `query` · `matchedBookCount` · `durationMs` · `searchedAt` 자동 기록
-- **클릭 로그 (`SearchResultClick`)** — 검색 결과 클릭 시 `searchLogId` · `bookId` · **`rankPosition`(노출 순위)** · **`similarityScore`(유사도)** · `clickedAt` 기록
-- 검색 응답에 `searchLogId`를 함께 내려주어, 발생한 클릭이 **어떤 검색에서 비롯됐는지** 연결
+**설계 의도.** 기능의 *구현 여부(Output)* 만 확인하는 데 그치지 않고, 강의에서 다룬 **Outcome 관점**에 따라 *그 기능이 실제 사용자 행동으로 이어지는지* 까지 데이터로 확인할 수 있도록 설계했습니다. 이를 위해 모든 검색과 그 결과에 대한 클릭을 기록하고, 두 로그를 연결하는 구조를 구성했습니다.
 
-이 데이터로 다음과 같은 **서비스 성과 지표**를 측정할 수 있습니다.
+**구현.**
+- 검색 로그(`SearchLog`): 검색 1건마다 `searchType`(KEYWORD/SEMANTIC) · `query` · `matchedBookCount` · `durationMs` · `searchedAt` 저장
+- 클릭 로그(`SearchResultClick`): 결과 클릭 시 `searchLogId` · `bookId` · `rankPosition`(노출 순위) · `similarityScore`(유사도) · `clickedAt` 저장
+- 검색 응답에 `searchLogId`를 포함하여, 이후 발생한 클릭을 해당 검색과 연결
 
-| 측정 지표 | 의미 (Outcome) |
-| --- | --- |
-| **CTR (클릭률)** = 클릭 수 / 검색 수 | 검색 결과가 실제 사용자 행동으로 이어졌는가 |
-| **순위별 클릭 분포** (`rankPosition`) | 상위에 노출한 도서가 실제로 클릭되는가 (랭킹 품질) |
-| **키워드 vs 시맨틱 CTR 비교** (`searchType`) | AI 의미 검색이 키워드 검색보다 더 잘 맞히는가 |
-| **유사도-클릭 상관** (`similarityScore`) | 유사도 점수가 높을수록 더 클릭되는가 (추천 신뢰도) |
+**측정 가능한 지표.** 수집된 로그로 다음을 분석할 수 있습니다.
 
-→ *"모델 정확도 95%"(Output)* 가 아니라, **"AI 검색·추천이 클릭률을 실제로 높였는가"(Outcome)** 를 데이터로 검증할 수 있는 구조입니다.
+| 지표 | 산식 / 근거 필드 | 확인 내용 |
+| --- | --- | --- |
+| CTR(클릭률) | 클릭 수 / 검색 수 | 검색 결과가 실제 클릭으로 이어진 비율 |
+| 순위별 클릭 분포 | `rankPosition` | 상위 노출 도서의 실제 클릭 집중도 (랭킹 품질) |
+| 키워드 vs 시맨틱 CTR | `searchType` 별 CTR | AI 의미 검색과 키워드 검색의 효과 비교 |
+| 유사도–클릭 상관 | `similarityScore` × 클릭 여부 | 유사도 점수와 실제 클릭의 상관 (추천 신뢰도) |
+
+**의의.** 이 구조를 통해 *"기능이 동작한다"* 는 확인을 넘어, *"AI 검색·추천이 사용자의 클릭(행동)으로 이어졌는지"* 를 정량적으로 검증할 수 있습니다.
 
 ---
 
