@@ -8,10 +8,14 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.net.URI;
 import java.util.List;
 import java.util.Map;
+import java.io.File;
+import java.io.IOException;
+import java.util.UUID;
 
 /**
  * 도서 관련 REST API 요청을 처리하는 컨트롤러입니다.
@@ -145,5 +149,32 @@ public class BookController {
         log.info("Request to update embedding for book id: {}", id);
         Book updatedBook = bookService.updateEmbedding(id, bookRequest.getEmbeddingJson(), bookRequest.getEmbeddingDurationMs());
         return ResponseEntity.ok(updatedBook);
+    }
+
+    /**
+     * 10. 표지 이미지 업로드 (POST /books/upload-image)
+     * - multipart/form-data: { "file": 이미지 파일 }
+     * - 서버 디스크(/uploads)에 저장 후 접근 가능한 URL 반환
+     * - 추후 S3 업로드 방식으로 교체 예정
+     */
+    @PostMapping("/upload-image")
+    public ResponseEntity<Map<String, String>> uploadImage(
+            @RequestParam("file") MultipartFile file) throws IOException {
+
+        File uploadDir = new File("./uploads");
+        if (!uploadDir.exists()) {
+            boolean created = uploadDir.mkdirs();
+            if (!created) {
+                log.warn("uploads 폴더 생성 실패");
+            }
+        }
+
+        String fileName = UUID.randomUUID() + ".png";
+        File imageFile = new File("./uploads/" + fileName);
+        file.transferTo(imageFile);
+
+        log.info("Image uploaded: {}", fileName);
+        String url = "http://localhost:8080/uploads/" + fileName;
+        return ResponseEntity.ok(Map.of("url", url));
     }
 }
