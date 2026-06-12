@@ -517,8 +517,3 @@ private double cosineSimilarity(float[] a, float[] b) {
 | 임베딩 없는 책 삭제 시 404 | 정리용 삭제가 없을 때 예외 throw | idempotent 삭제로 변경 |
 | 검색 클릭 저장 500 | `Map<String,Object>` 숫자 캐스팅 실패 | `((Number)v).longValue()` 안전 변환 |
 
----
-
-## 📦 시연 영상
-
-- 추가 예정....
