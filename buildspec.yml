@@ -1,0 +1,27 @@
+version: 0.2
+
+phases:
+  install:
+    runtime-versions:
+      java: corretto17
+
+  pre_build:
+    commands:
+      - echo "Build started on `date`"
+      - chmod +x ./gradlew
+
+  build:
+    commands:
+      - echo "Building Spring Boot..."
+      - ./gradlew bootJar -x test
+
+  post_build:
+    commands:
+      - echo "Build completed on `date`"
+
+artifacts:
+  files:
+    - build/libs/*.jar
+    - appspec.yml
+    - deploy-scripts/**/*
+  discard-paths: no
