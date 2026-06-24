@@ -3,24 +3,24 @@ os: linux
 
 files:
   - source: build/libs/
-    destination: /home/ec2-user/app/
+    destination: /home/ubuntu/app/
   - source: deploy-scripts/
-    destination: /home/ec2-user/deploy-scripts/
+    destination: /home/ubuntu/deploy-scripts/
 
 permissions:
-  - object: /home/ec2-user/deploy-scripts/
+  - object: /home/ubuntu/deploy-scripts/
     mode: "755"
 
 hooks:
   ApplicationStop:
     - location: deploy-scripts/stop.sh
       timeout: 60
-      runas: ec2-user
+      runas: ubuntu
   ApplicationStart:
     - location: deploy-scripts/start.sh
       timeout: 120
-      runas: ec2-user
+      runas: ubuntu
   ValidateService:
     - location: deploy-scripts/health_check.sh
       timeout: 60
-      runas: ec2-user
+      runas: ubuntu
