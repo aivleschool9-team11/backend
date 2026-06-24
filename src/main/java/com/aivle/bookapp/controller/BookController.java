@@ -7,6 +7,7 @@ import com.aivle.bookapp.dto.request.BookUpdateRequest;
 import com.aivle.bookapp.dto.response.BookResponse;
 import com.aivle.bookapp.dto.response.BookSummaryResponse;
 import com.aivle.bookapp.service.BookService;
+import com.aivle.bookapp.service.S3Service;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -20,11 +21,6 @@ import java.net.URI;
 import java.util.List;
 import java.util.Map;
 import java.io.IOException;
-import java.util.UUID;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.Paths;
-import java.nio.file.StandardCopyOption;
 
 /**
  * 도서 관련 REST API 요청을 처리하는 컨트롤러입니다.
@@ -36,6 +32,7 @@ import java.nio.file.StandardCopyOption;
 public class BookController {
 
     private final BookService bookService;
+    private final S3Service s3Service;
 
     /**
      * 1. 도서 목록 조회 (통합 검색, 정렬, 태그 필터링 포함)
@@ -172,22 +169,14 @@ public class BookController {
     /**
      * 10. 표지 이미지 업로드 (POST /books/upload-image)
      * - multipart/form-data: { "file": 이미지 파일 }
-     * - 절대 경로 기반으로 /uploads 폴더에 저장 후 접근 가능한 URL 반환
+     * - AWS S3에 업로드 후 접근 가능한 URL 반환
      */
     @PostMapping("/upload-image")
     public ResponseEntity<Map<String, String>> uploadImage(
             @RequestParam("file") MultipartFile file) throws IOException {
 
-        Path uploadPath = Paths.get("uploads").toAbsolutePath().normalize();
-        if (!Files.exists(uploadPath)) {
-            Files.createDirectories(uploadPath);
-        }
-        String fileName = UUID.randomUUID() + ".png";
-        Path filePath  = uploadPath.resolve(fileName);
-        Files.copy(file.getInputStream(), filePath, StandardCopyOption.REPLACE_EXISTING);
-
-        log.info("Image uploaded: {}", fileName);
-        String url = "http://localhost:8080/uploads/" + fileName;
+        String url = s3Service.upload(file);
+        log.info("Image uploaded to S3: {}", url);
         return ResponseEntity.ok(Map.of("url", url));
     }
 }
