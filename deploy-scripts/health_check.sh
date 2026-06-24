@@ -1,6 +1,6 @@
 #!/bin/bash
 
-sleep 10
+sleep 30
 
 RESPONSE=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:8080/actuator/health)
 
