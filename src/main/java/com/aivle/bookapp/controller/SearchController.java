@@ -87,7 +87,7 @@ public class SearchController {
         log.info("Request to semantic search - topK: {}", topK);
 
         long startTime = System.currentTimeMillis();
-        List<BookSummaryResponse> books = bookService.semanticSearch(queryVector, null, topK);
+        List<BookSummaryResponse> books = bookService.semanticSearch(queryVector, topK);
         long durationMs = System.currentTimeMillis() - startTime;
 
         Map<String, Object> response = new HashMap<>();

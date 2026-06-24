@@ -2,23 +2,24 @@ package com.aivle.bookapp.service;
 
 
 import com.aivle.bookapp.domain.Book;
-import com.aivle.bookapp.domain.BookEmbedding;
 import com.aivle.bookapp.domain.Tag;
 import com.aivle.bookapp.dto.request.BookCreateRequest;
 import com.aivle.bookapp.dto.request.BookUpdateRequest;
 import com.aivle.bookapp.dto.response.BookResponse;
 import com.aivle.bookapp.dto.response.BookSummaryResponse;
 import com.aivle.bookapp.exception.BookNotFoundException;
-import com.aivle.bookapp.repository.BookEmbeddingRepository;
 import com.aivle.bookapp.repository.BookRepository;
 import com.aivle.bookapp.repository.BookTagRepository;
 import com.aivle.bookapp.repository.TagRepository;
 
+import java.util.Arrays;
 import java.util.Objects;
+
+import com.pgvector.PGvector;
 import lombok.RequiredArgsConstructor;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import java.util.AbstractMap;
 
 
 
@@ -30,10 +31,9 @@ import java.util.stream.Collectors;
 public class BookService {
     private final BookRepository bookRepository;
     private final TagService tagService;
-    private final BookEmbeddingService bookEmbeddingService;
     private final BookTagRepository bookTagRepository;
-    private final BookEmbeddingRepository bookEmbeddingRepository;
     private final TagRepository tagRepository;
+    private final JdbcTemplate jdbcTemplate;
 
     // Book을 BookResponse로 변환
     public BookResponse makeBookResponse(Book book) {
@@ -98,18 +98,17 @@ public class BookService {
                 .build();
         Book saved = bookRepository.save(book);
 
-        // 태그 저장
+        if (request.getEmbeddingJson() != null && !request.getEmbeddingJson().isEmpty()) {
+            String vectorStr = toVectorString(request.getEmbeddingJson());
+            jdbcTemplate.update(
+                    "UPDATE books SET embedding = ?::vector WHERE id = ?",
+                    vectorStr, saved.getId()
+            );
+        }
         if (request.getTags() != null && !request.getTags().isEmpty()) {
             tagService.saveBookTags(saved.getId(), request.getTags());
         }
-        // 임베딩 저장
-        if (request.getEmbeddingJson() != null && !request.getEmbeddingJson().isEmpty()) {
-            bookEmbeddingService.save(
-                    saved.getId(),
-                    request.getEmbeddingJson(),
-                    request.getEmbeddingDurationMs()
-            );
-        }
+
         return makeBookResponse(saved);
     }
 
@@ -126,24 +125,22 @@ public class BookService {
         if (request.hasCopy()) existing.setCopy(request.getCopy());
         if (request.hasCoverImageUrl()) existing.setCoverImageUrl(request.getCoverImageUrl());
 
+        if (request.hasEmbeddingJson()) {
+            String vectorStr = toVectorString(request.getEmbeddingJson());
+            jdbcTemplate.update(
+                    "UPDATE books SET embedding = ?::vector WHERE id = ?",
+                    vectorStr, existing.getId()
+            );
+        }
+
         Book updated = bookRepository.save(existing);
 
-        // 태그 재저장
         if (request.hasTags()) {
             List<String> tags = request.getTags();
             tagService.deleteByBookId(id);
             if (!tags.isEmpty()) {
                 tagService.saveBookTags(id, tags);
             }
-        }
-
-        // 임베딩 재저장
-        if (request.hasEmbeddingJson()) {
-            bookEmbeddingService.update(
-                    updated.getId(),
-                    request.getEmbeddingJson(),
-                    request.getEmbeddingDurationMs()
-            );
         }
 
         return makeBookResponse(updated);
@@ -156,7 +153,6 @@ public class BookService {
             throw new BookNotFoundException(id);
         }
         tagService.deleteByBookId(id);
-        bookEmbeddingService.deleteByBookId(id);
         bookRepository.deleteById(id);
     }
 
@@ -180,9 +176,13 @@ public class BookService {
 
     // 임베딩 백필
     @Transactional
-    public BookResponse updateEmbedding(Long id, List<Float> embeddingJson, Long embeddingDurationMs) {
+    public BookResponse updateEmbedding(Long id, List<Float> values) {
         Book existing = findById(id);
-        bookEmbeddingService.update(id, embeddingJson, embeddingDurationMs);
+        String vectorStr = toVectorString(values);
+        jdbcTemplate.update(
+                "UPDATE books SET embedding = ?::vector WHERE id = ?",
+                vectorStr, id
+        );
         return makeBookResponse(existing);
     }
 
@@ -223,58 +223,33 @@ public class BookService {
 
     // AI 의미 검색 + 코사인 유사도 계산
     @Transactional(readOnly = true)
-    public List<BookSummaryResponse> semanticSearch(float[] queryVector, String query, int topK){
+    public List<BookSummaryResponse> semanticSearch(float[] queryVector, int topK){
+        String vectorStr = Arrays.toString(queryVector);
 
-        // bookEmbeddingService에서 전체 임베딩 조회 후 코사인 유사도 계산
-        List<BookEmbedding> allEmbeddings = bookEmbeddingRepository.findAll();
+        List<Book> books = bookRepository.findSimilarBooks(vectorStr, topK);
 
-        // searchLogService.saveSearchLog() 호출 (searchType: "SEMANTIC")
-        List<BookSummaryResponse> results;
-        results = allEmbeddings.stream()
-                .map(bookEmbedding -> {
-                    float[] vector = parseEmbeddingJson(bookEmbedding.getEmbeddingJson());
-                    double score = cosineSimilarity(queryVector, vector);
-                    return new AbstractMap.SimpleEntry<>(bookEmbedding.getBookId(), score);
+        return books.stream()
+                .map(book -> {
+                    Double score = bookRepository.findSimilarityScore(vectorStr, book.getId());
+                    return BookSummaryResponse.from(book, score);
                 })
-                .filter(entry -> entry.getValue() > 0)
-                .sorted((a, b) -> Double.compare(b.getValue(), a.getValue()))
-                .limit(topK)
-                .map(entry -> BookSummaryResponse.from(
-                        findById(entry.getKey()),
-                        entry.getValue()
-                ))
                 .collect(Collectors.toList());
-
-        // 검색 로그 저장
-
-        return results;
     }
 
-    // embeddingJson 문자열을 float[]로 변환
-    private float[] parseEmbeddingJson(String embeddingJson) {
-        try {
-            embeddingJson = embeddingJson.trim().replaceAll("[\\[\\]]", "");
-            String[] parts = embeddingJson.split(",");
-            float[] vector = new float[parts.length];
-            for (int i = 0; i < parts.length; i++) {
-                vector[i] = Float.parseFloat(parts[i].trim());
-            }
-            return vector;
-        } catch (Exception e) {
-            return new float[0];
+
+    // List<Float> -> float [] 변환 유틸
+    private float[] toFloatArray(List<Float> values){
+        float [] arr = new float[values.size()];
+        for(int i =0; i < values.size(); i++){
+            arr[i] = values.get(i);
         }
+        return arr;
     }
 
-    // 코사인 유사도 계산
-    private double cosineSimilarity(float[] vectorA, float[] vectorB) {
-        if (vectorA.length != vectorB.length) return 0;
-        double dot = 0, normA = 0, normB = 0;
-        for (int i = 0; i < vectorA.length; i++) {
-            dot += vectorA[i] * vectorB[i];
-            normA += vectorA[i] * vectorA[i];
-            normB += vectorB[i] * vectorB[i];
-        }
-        if (normA == 0 || normB == 0) return 0;
-        return dot / (Math.sqrt(normA) * Math.sqrt(normB));
+    // float[] → "[0.1, 0.2, ...]" String 변환
+    private String toVectorString(List<Float> values) {
+        return values.stream()
+                .map(String::valueOf)
+                .collect(Collectors.joining(",", "[", "]"));
     }
 }
