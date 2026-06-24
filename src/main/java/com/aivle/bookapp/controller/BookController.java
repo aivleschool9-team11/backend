@@ -165,7 +165,7 @@ public class BookController {
     @PatchMapping("/{id}/embedding")
     public ResponseEntity<BookResponse> updateBookEmbedding(@PathVariable Long id, @RequestBody BookUpdateRequest bookRequest) {
         log.info("Request to update embedding for book id: {}", id);
-        BookResponse updatedBook = bookService.updateEmbedding(id, bookRequest.getEmbeddingJson(), bookRequest.getEmbeddingDurationMs());
+        BookResponse updatedBook = bookService.updateEmbedding(id, bookRequest.getEmbeddingJson());
         return ResponseEntity.ok(updatedBook);
     }
 

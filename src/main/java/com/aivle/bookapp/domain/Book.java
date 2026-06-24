@@ -1,5 +1,6 @@
 package com.aivle.bookapp.domain;
 
+import com.aivle.bookapp.converter.VectorConverter;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
@@ -37,8 +38,7 @@ public class Book {
 
     private String copy;
 
-    @Lob
-    @Column(name = "cover_image_url", columnDefinition = "CLOB")
+    @Column(name = "cover_image_url", columnDefinition = "TEXT")
     private String coverImageUrl;
 
     @Builder.Default
