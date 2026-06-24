@@ -1,6 +1,5 @@
 package com.aivle.bookapp.domain;
 
-import com.aivle.bookapp.converter.VectorConverter;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
