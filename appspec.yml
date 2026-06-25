@@ -4,8 +4,10 @@ os: linux
 files:
   - source: build/libs/
     destination: /home/ubuntu/app/
+    overwrite: yes
   - source: deploy-scripts/
     destination: /home/ubuntu/deploy-scripts/
+    overwrite: yes
 
 permissions:
   - object: /home/ubuntu/app/
