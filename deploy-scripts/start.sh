@@ -23,13 +23,13 @@ DB_PASSWORD=$(aws ssm get-parameter \
   --output text \
   --region ap-northeast-2)
 
+export DB_URL
+export DB_USERNAME
+export DB_PASSWORD
+export DDL_AUTO=update
+export S3_BUCKET=team11-s3-001
+
 nohup java -jar \
-  -Dspring.profiles.active=prod \
-  -Dspring.datasource.url=${DB_URL} \
-  -Dspring.datasource.username=${DB_USERNAME} \
-  -Dspring.datasource.password=${DB_PASSWORD} \
-  -Dcloud.aws.region.static=ap-northeast-2 \
-  -Dcloud.aws.s3.bucket=team11-s3-001 \
   *.jar \
   > /home/ubuntu/app/app.log 2>&1 &
 
