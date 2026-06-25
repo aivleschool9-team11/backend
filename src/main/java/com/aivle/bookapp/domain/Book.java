@@ -4,6 +4,10 @@ import jakarta.persistence.*;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
 import lombok.*;
+import org.hibernate.annotations.Array;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
+
 import java.time.LocalDateTime;
 
 @Entity
@@ -39,6 +43,11 @@ public class Book {
 
     @Column(name = "cover_image_url", columnDefinition = "TEXT")
     private String coverImageUrl;
+
+    @Column(columnDefinition = "vector(1536)")
+    @JdbcTypeCode(SqlTypes.VECTOR)
+    @Array(length = 1536)
+    private float [] embedding;
 
     @Builder.Default
     @Column(nullable = false)
