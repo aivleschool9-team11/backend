@@ -15,9 +15,7 @@ import com.aivle.bookapp.repository.TagRepository;
 import java.util.Arrays;
 import java.util.Objects;
 
-import com.pgvector.PGvector;
 import lombok.RequiredArgsConstructor;
-import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -33,7 +31,6 @@ public class BookService {
     private final TagService tagService;
     private final BookTagRepository bookTagRepository;
     private final TagRepository tagRepository;
-    private final JdbcTemplate jdbcTemplate;
 
     // Book을 BookResponse로 변환
     public BookResponse makeBookResponse(Book book) {
@@ -95,16 +92,12 @@ public class BookService {
                 .summary(request.getSummary())
                 .copy(request.getCopy())
                 .coverImageUrl(request.getCoverImageUrl())
+                .embedding(request.getEmbeddingJson() != null && !request.getEmbeddingJson().isEmpty()
+                        ? toFloatArray(request.getEmbeddingJson())
+                        : null)
                 .build();
         Book saved = bookRepository.save(book);
 
-        if (request.getEmbeddingJson() != null && !request.getEmbeddingJson().isEmpty()) {
-            String vectorStr = toVectorString(request.getEmbeddingJson());
-            jdbcTemplate.update(
-                    "UPDATE books SET embedding = ?::vector WHERE id = ?",
-                    vectorStr, saved.getId()
-            );
-        }
         if (request.getTags() != null && !request.getTags().isEmpty()) {
             tagService.saveBookTags(saved.getId(), request.getTags());
         }
@@ -124,13 +117,8 @@ public class BookService {
         if (request.hasContent()) existing.setContent(request.getContent());
         if (request.hasCopy()) existing.setCopy(request.getCopy());
         if (request.hasCoverImageUrl()) existing.setCoverImageUrl(request.getCoverImageUrl());
-
-        if (request.hasEmbeddingJson()) {
-            String vectorStr = toVectorString(request.getEmbeddingJson());
-            jdbcTemplate.update(
-                    "UPDATE books SET embedding = ?::vector WHERE id = ?",
-                    vectorStr, existing.getId()
-            );
+        if(request.hasEmbeddingJson()){
+            existing.setEmbedding(toFloatArray(request.getEmbeddingJson()));
         }
 
         Book updated = bookRepository.save(existing);
@@ -178,11 +166,8 @@ public class BookService {
     @Transactional
     public BookResponse updateEmbedding(Long id, List<Float> values) {
         Book existing = findById(id);
-        String vectorStr = toVectorString(values);
-        jdbcTemplate.update(
-                "UPDATE books SET embedding = ?::vector WHERE id = ?",
-                vectorStr, id
-        );
+        existing.setEmbedding(toFloatArray(values));
+        bookRepository.save(existing);
         return makeBookResponse(existing);
     }
 
@@ -217,7 +202,6 @@ public class BookService {
         else if ("author".equals(sort)) books.sort((a, b) -> a.getAuthor().compareTo(b.getAuthor()));
         else if ("likes".equals(sort)) books.sort((a, b) -> (b.getLikes() == null ? 0 : b.getLikes()) - (a.getLikes() == null ? 0 : a.getLikes()));
 
-        // searchLogService.saveSearchLog() 호출
         return makeBookSummaryResponseList(books);
     }
 
@@ -244,12 +228,5 @@ public class BookService {
             arr[i] = values.get(i);
         }
         return arr;
-    }
-
-    // float[] → "[0.1, 0.2, ...]" String 변환
-    private String toVectorString(List<Float> values) {
-        return values.stream()
-                .map(String::valueOf)
-                .collect(Collectors.joining(",", "[", "]"));
     }
 }
