@@ -2,7 +2,7 @@
 
 sleep 30
 
-RESPONSE=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:8080/actuator/health)
+RESPONSE=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:8080/api/actuator/health)
 
 if [ "$RESPONSE" = "200" ]; then
   echo "Health check passed"
