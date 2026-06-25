@@ -21,7 +21,9 @@ public class S3Service {
     @Value("${cloud.aws.s3.bucket}")
     private String bucket;
 
-    @Value("${cloud.aws.cloudfront.domain:}")
+    // CloudFront 도메인 (시크릿 아님). yml에 값 없어도 기본값으로 CloudFront URL 반환되도록
+    // 기본값을 박아둔다 → 팀원별 application.yml 설정 누락으로 S3 URL이 저장되는 드리프트 방지.
+    @Value("${cloud.aws.cloudfront.domain:d1i18e14fwa1wz.cloudfront.net}")
     private String cloudFrontDomain;
 
     /**
