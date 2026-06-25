@@ -24,6 +24,10 @@ hooks:
     - location: deploy-scripts/stop.sh
       timeout: 60
       runas: ubuntu
+  BeforeInstall:
+    - location: deploy-scripts/clean.sh
+      timeout: 30
+      runas: ubuntu
   ApplicationStart:
     - location: deploy-scripts/start.sh
       timeout: 120
