@@ -9,7 +9,3 @@ if [ -n "$PID" ]; then
 else
   echo "Application not running"
 fi
-
-# jar 파일 삭제
-rm -f /home/ubuntu/app/*.jar
-echo "jar 파일 삭제 완료"
